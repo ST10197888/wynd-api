@@ -1,26 +1,52 @@
 const express = require("express");
 const { body, validationResult } = require("express-validator");
 const authenticateToken = require("../middleware/authMiddleware");
+const requireOwner = require("../middleware/requireOwner");
 const UserSettings = require("../models/UserSettings");
 const SavedLocation = require("../models/SavedLocation");
 
 const router = express.Router();
 const MAX_SAVED_LOCATIONS = 10;
 
-router.put("/users/:userId/settings", authenticateToken, [
+const SETTINGS_FIELDS = [
+    "temperatureUnit",
+    "windSpeedUnit",
+    "precipitationUnit",
+    "timeFormat",
+    "theme",
+    "language",
+    "notificationsEnabled",
+    "smartAlertsEnabled",
+    "automaticLocationEnabled",
+    "biometricEnabled"
+];
+
+router.put("/users/:userId/settings", authenticateToken, requireOwner, [
     body("temperatureUnit").optional().isIn(["C", "F"]),
     body("windSpeedUnit").optional().isIn(["km/h", "mph"]),
+    body("precipitationUnit").optional().isIn(["mm", "in"]),
+    body("timeFormat").optional().isIn(["12h", "24h"]),
     body("theme").optional().isIn(["Light", "Dark", "System"]),
-    body("language").optional().isIn(["English", "Afrikaans", "isiZulu"])
+    body("language").optional().isIn(["English", "Afrikaans", "isiZulu"]),
+    body("notificationsEnabled").optional().isBoolean(),
+    body("smartAlertsEnabled").optional().isBoolean(),
+    body("automaticLocationEnabled").optional().isBoolean(),
+    body("biometricEnabled").optional().isBoolean()
 ], async (req, res) => {
     try {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
             return res.status(400).json({ success: false, errors: errors.array() });
         }
+        const update = {};
+        for (const field of SETTINGS_FIELDS) {
+            if (req.body[field] !== undefined) {
+                update[field] = req.body[field];
+            }
+        }
         const settings = await UserSettings.findOneAndUpdate(
             { userId: req.params.userId },
-            { $set: req.body },
+            { $set: update },
             { new: true, upsert: true }
         );
         return res.status(200).json({ message: "Settings updated successfully.", settings });
@@ -30,7 +56,7 @@ router.put("/users/:userId/settings", authenticateToken, [
     }
 });
 
-router.get("/users/:userId/locations", authenticateToken, async (req, res) => {
+router.get("/users/:userId/locations", authenticateToken, requireOwner, async (req, res) => {
     try {
         const locations = await SavedLocation.find({ userId: req.params.userId });
         return res.status(200).json({ locations });
@@ -40,7 +66,7 @@ router.get("/users/:userId/locations", authenticateToken, async (req, res) => {
     }
 });
 
-router.post("/users/:userId/locations", authenticateToken, [
+router.post("/users/:userId/locations", authenticateToken, requireOwner, [
     body("locationName").notEmpty().withMessage("locationName is required."),
     body("latitude").isFloat().withMessage("latitude must be a number."),
     body("longitude").isFloat().withMessage("longitude must be a number.")
@@ -64,7 +90,7 @@ router.post("/users/:userId/locations", authenticateToken, [
     }
 });
 
-router.delete("/users/:userId/locations", authenticateToken, [
+router.delete("/users/:userId/locations", authenticateToken, requireOwner, [
     body("locationName").notEmpty().withMessage("locationName is required.")
 ], async (req, res) => {
     try {

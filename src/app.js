@@ -8,6 +8,8 @@ const authRouter = require("./routes/auth");
 const usersRouter = require("./routes/users");
 const weatherRouter = require("./routes/weather");
 const gamificationRouter = require("./routes/gamification");
+const syncRouter = require("./routes/sync");
+const filesRouter = require("./routes/files");
 
 const app = express();
 
@@ -26,6 +28,8 @@ app.use(authRouter);
 app.use(usersRouter);
 app.use(weatherRouter);
 app.use(gamificationRouter);
+app.use(syncRouter);
+app.use(filesRouter);
 
 app.use((req, res) => {
     res.status(404).json({ success: false, message: "Route not found." });
