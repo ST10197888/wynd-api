@@ -1,17 +1,15 @@
-const { createClient } = require("@supabase/supabase-js");
+const admin = require("firebase-admin");
 
-let client = null;
-
-function getStorage() {
-    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY) {
-        throw new Error("Supabase environment variables are not set.");
+function getMessaging() {
+    if (!admin.apps.length) {
+        const encoded = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
+        if (!encoded) {
+            throw new Error("FIREBASE_SERVICE_ACCOUNT_BASE64 is not set.");
+        }
+        const serviceAccount = JSON.parse(Buffer.from(encoded, "base64").toString("utf8"));
+        admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
     }
-    if (!client) {
-        client = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY, {
-            auth: { persistSession: false, autoRefreshToken: false }
-        });
-    }
-    return { client, bucket: process.env.SUPABASE_BUCKET || "wynd-assets" };
+    return admin.messaging();
 }
 
-module.exports = { getStorage };
+module.exports = { getMessaging };

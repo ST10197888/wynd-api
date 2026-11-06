@@ -10,6 +10,7 @@ const weatherRouter = require("./routes/weather");
 const gamificationRouter = require("./routes/gamification");
 const syncRouter = require("./routes/sync");
 const filesRouter = require("./routes/files");
+const notificationsRouter = require("./routes/notifications");
 
 const app = express();
 
@@ -30,7 +31,7 @@ app.use(weatherRouter);
 app.use(gamificationRouter);
 app.use(syncRouter);
 app.use(filesRouter);
-
+app.use(notificationsRouter);
 app.use((req, res) => {
     res.status(404).json({ success: false, message: "Route not found." });
 });
