@@ -1,0 +1,851 @@
+{
+  "info": {
+    "name": "Wynd Kennedy \u2014 Sections 4.3 & 4.4 Settings and MongoDB Verification",
+    "_postman_id": "b36c0880-51f4-4f22-a924-9cbe2d976977",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Run against your own Railway or localhost backend. Requires two distinct test-user IDs, a test account, and at least two free saved-location slots. Creates then deletes two uniquely named test locations; updates and restores three settings fields. If a run stops, manually clean up test locations and restore settings. Never export populated secrets."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://wynd-api-production.up.railway.app",
+      "type": "string"
+    },
+    {
+      "key": "loginEmail",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "loginPassword",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "otherUserId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "testLocationName",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "syncLocationName",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "syncClientId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "originalSettings",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "00 Login \u2014 capture token and userId",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "login"
+          ]
+        },
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{loginEmail}}\",\n  \"password\": \"{{loginPassword}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const d=pm.response.json(); pm.test(\"Token and userId returned\",()=>{pm.expect(d.token).to.be.a(\"string\").and.not.empty;pm.expect(d.userId).to.be.a(\"string\").and.not.empty;});",
+              "if(d.token && d.userId){pm.collectionVariables.set(\"token\",d.token);pm.collectionVariables.set(\"userId\",d.userId);}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 GET settings \u2014 baseline",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{userId}}/settings",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{userId}}",
+            "settings"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const d=pm.response.json(); pm.test(\"Settings object returned\",()=>pm.expect(d.settings).to.be.an(\"object\"));",
+              "pm.collectionVariables.set(\"originalSettings\", JSON.stringify(d.settings||{}));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 PUT settings \u2014 persist test values",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{userId}}/settings",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{userId}}",
+            "settings"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"temperatureUnit\": \"F\",\n  \"timeFormat\": \"12h\",\n  \"theme\": \"Dark\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const d=pm.response.json(); pm.test(\"Updated values returned\",()=>{pm.expect(d.settings.temperatureUnit).to.eql(\"F\");pm.expect(d.settings.timeFormat).to.eql(\"12h\");pm.expect(d.settings.theme).to.eql(\"Dark\");});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 GET settings \u2014 verify persistence",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{userId}}/settings",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{userId}}",
+            "settings"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const s=pm.response.json().settings;pm.test(\"Settings persisted in MongoDB\",()=>{pm.expect(s.temperatureUnit).to.eql(\"F\");pm.expect(s.timeFormat).to.eql(\"12h\");pm.expect(s.theme).to.eql(\"Dark\");});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 PUT settings \u2014 reject invalid value",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{userId}}/settings",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{userId}}",
+            "settings"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"temperatureUnit\": \"Kelvin\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Restore original settings",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{userId}}/settings",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{userId}}",
+            "settings"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"temperatureUnit\": \"{{originalTemperatureUnit}}\",\n  \"timeFormat\": \"{{originalTimeFormat}}\",\n  \"theme\": \"{{originalTheme}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const s=JSON.parse(pm.collectionVariables.get(\"originalSettings\")||\"{}\");pm.collectionVariables.set(\"originalTemperatureUnit\",s.temperatureUnit||\"C\");pm.collectionVariables.set(\"originalTimeFormat\",s.timeFormat||\"24h\");pm.collectionVariables.set(\"originalTheme\",s.theme||\"System\");"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 GET saved locations \u2014 baseline",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{userId}}/locations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{userId}}",
+            "locations"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const d=pm.response.json();pm.test(\"Locations array returned\",()=>pm.expect(d.locations).to.be.an(\"array\"));",
+              "pm.collectionVariables.set(\"baselineCount\",String(d.locations.length));",
+              "pm.test(\"Capacity for one test location\",()=>pm.expect(d.locations.length).to.be.below(10));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 POST saved location \u2014 create",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{userId}}/locations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{userId}}",
+            "locations"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"locationName\": \"{{testLocationName}}\",\n  \"latitude\": -26.2041,\n  \"longitude\": 28.0473,\n  \"country\": \"South Africa\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if(!pm.collectionVariables.get(\"testLocationName\")){pm.collectionVariables.set(\"testLocationName\",\"POE-TEST-\"+Date.now());}"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "const d=pm.response.json();pm.test(\"Created location appears\",()=>pm.expect(d.locations.some(x=>x.locationName===pm.collectionVariables.get(\"testLocationName\"))).to.eql(true));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 GET saved locations \u2014 verify creation",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{userId}}/locations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{userId}}",
+            "locations"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const d=pm.response.json();pm.test(\"Saved location persists\",()=>pm.expect(d.locations.filter(x=>x.locationName===pm.collectionVariables.get(\"testLocationName\")).length).to.eql(1));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 POST sync \u2014 create second location",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{userId}}/sync/locations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{userId}}",
+            "sync",
+            "locations"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"items\": [\n    {\n      \"clientId\": \"{{syncClientId}}\",\n      \"locationName\": \"{{syncLocationName}}\",\n      \"latitude\": -25.7479,\n      \"longitude\": 28.2293,\n      \"country\": \"South Africa\",\n      \"timestamp\": \"2026-11-07T00:00:00.000Z\"\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if(!pm.collectionVariables.get(\"syncClientId\")){pm.collectionVariables.set(\"syncClientId\",\"poe-sync-\"+Date.now());pm.collectionVariables.set(\"syncLocationName\",\"POE-SYNC-\"+Date.now());}"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const d=pm.response.json();pm.test(\"Sync created one location\",()=>pm.expect(d.results[0].status).to.eql(\"created\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 POST sync \u2014 retry same clientId",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{userId}}/sync/locations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{userId}}",
+            "sync",
+            "locations"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"items\": [\n    {\n      \"clientId\": \"{{syncClientId}}\",\n      \"locationName\": \"{{syncLocationName}}\",\n      \"latitude\": -25.7479,\n      \"longitude\": 28.2293,\n      \"country\": \"South Africa\",\n      \"timestamp\": \"2026-11-07T00:00:00.000Z\"\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const d=pm.response.json();pm.test(\"Retry does not create duplicate\",()=>{pm.expect(d.results[0].status).to.eql(\"exists\");pm.expect(d.locations.filter(x=>x.clientId===pm.collectionVariables.get(\"syncClientId\")).length).to.eql(1);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 GET saved locations \u2014 verify sync",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{userId}}/locations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{userId}}",
+            "locations"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const a=pm.response.json().locations;pm.test(\"Both test locations are persisted\",()=>{pm.expect(a.some(x=>x.locationName===pm.collectionVariables.get(\"testLocationName\"))).to.eql(true);pm.expect(a.some(x=>x.clientId===pm.collectionVariables.get(\"syncClientId\"))).to.eql(true);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 GET other user locations \u2014 forbidden",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{otherUserId}}/locations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{otherUserId}}",
+            "locations"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+              "pm.test(\"Different user ID configured\",()=>pm.expect(pm.collectionVariables.get(\"otherUserId\")).to.not.eql(pm.collectionVariables.get(\"userId\")));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 DELETE created test location",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{userId}}/locations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{userId}}",
+            "locations"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"locationName\": \"{{testLocationName}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Created test location removed\",()=>pm.expect(pm.response.json().locations.some(x=>x.locationName===pm.collectionVariables.get(\"testLocationName\"))).to.eql(false));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "14 DELETE synced test location",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{userId}}/locations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{userId}}",
+            "locations"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"locationName\": \"{{syncLocationName}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Synced test location removed\",()=>pm.expect(pm.response.json().locations.some(x=>x.locationName===pm.collectionVariables.get(\"syncLocationName\"))).to.eql(false));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "15 GET saved locations \u2014 verify cleanup",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{userId}}/locations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users",
+            "{{userId}}",
+            "locations"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const a=pm.response.json().locations;pm.test(\"No test records remain\",()=>{pm.expect(a.some(x=>x.locationName===pm.collectionVariables.get(\"testLocationName\"))).to.eql(false);pm.expect(a.some(x=>x.locationName===pm.collectionVariables.get(\"syncLocationName\"))).to.eql(false);});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

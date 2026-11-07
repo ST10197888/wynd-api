@@ -1,0 +1,504 @@
+{
+  "info": {
+    "name": "Wynd Kennedy Section 4.7 \u2014 Weather and Gamification Verification",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Final uncovered-route checks. Prior collections for 4.1\u20134.6 should also be run for comprehensive regression. No credentials are included."
+  },
+  "item": [
+    {
+      "name": "00 Login and capture token",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "login"
+          ]
+        },
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\": \"{{loginEmail}}\", \"password\": \"{{loginPassword}}\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const j=pm.response.json();",
+              "pm.test(\"JWT and userId present\",()=>{pm.expect(j.token).to.be.a(\"string\").and.not.empty;pm.expect(j.userId).to.be.a(\"string\").and.not.empty;});",
+              "if(j.token && j.userId){pm.collectionVariables.set(\"token\",j.token);pm.collectionVariables.set(\"userId\",j.userId);}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 Current weather anonymous",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/weather/current?location={{weatherLocation}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "weather",
+            "current"
+          ]
+        },
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const j=pm.response.json();pm.test(\"Current weather fields\",()=>{pm.expect(j).to.have.keys(\"location\",\"temperature\",\"condition\",\"humidity\");});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Current weather authenticated",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/weather/current?location={{weatherLocation}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "weather",
+            "current"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const j=pm.response.json();pm.test(\"Authenticated weather fields\",()=>{pm.expect(j).to.include.all.keys(\"location\",\"temperature\",\"condition\",\"humidity\",\"windSpeed\",\"rainProbability\",\"uvIndex\");});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Current weather missing location",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/weather/current",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "weather",
+            "current"
+          ]
+        },
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Forecast anonymous",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/weather/forecast?location={{weatherLocation}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "weather",
+            "forecast"
+          ]
+        },
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const j=pm.response.json();pm.test(\"Forecast array\",()=>{pm.expect(j.forecast).to.be.an(\"array\");});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Forecast authenticated",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/weather/forecast?location={{weatherLocation}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "weather",
+            "forecast"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const j=pm.response.json();pm.test(\"Forecast array\",()=>{pm.expect(j.forecast).to.be.an(\"array\");});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 Forecast missing location",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/weather/forecast",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "weather",
+            "forecast"
+          ]
+        },
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 Daily fact authenticated",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/gamification/daily-fact",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "gamification",
+            "daily-fact"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const j=pm.response.json();pm.test(\"Fact returned\",()=>{pm.expect(j.fact).to.be.a(\"string\").and.not.empty;});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 Daily fact without token",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/gamification/daily-fact",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "gamification",
+            "daily-fact"
+          ]
+        },
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 Daily fact invalid token",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/gamification/daily-fact",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "gamification",
+            "daily-fact"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "invalid-token",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 Achievements authenticated",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/gamification/achievements",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "gamification",
+            "achievements"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const j=pm.response.json();pm.test(\"Achievements array\",()=>{pm.expect(j.achievements).to.be.an(\"array\");});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 Achievements without token",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/gamification/achievements",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "gamification",
+            "achievements"
+          ]
+        },
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 Achievements invalid token",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/gamification/achievements",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "gamification",
+            "achievements"
+          ]
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "invalid-token",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://wynd-api-production.up.railway.app",
+      "type": "string"
+    },
+    {
+      "key": "loginEmail",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "loginPassword",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "weatherLocation",
+      "value": "Johannesburg",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
