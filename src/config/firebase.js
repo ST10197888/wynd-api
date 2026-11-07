@@ -1,15 +1,34 @@
-const admin = require("firebase-admin");
+
+const { getApps, initializeApp, cert } = require("firebase-admin/app");
+const { getMessaging: getFirebaseMessaging } = require("firebase-admin/messaging");
 
 function getMessaging() {
-    if (!admin.apps.length) {
+    if (getApps().length === 0) {
         const encoded = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
+
         if (!encoded) {
             throw new Error("FIREBASE_SERVICE_ACCOUNT_BASE64 is not set.");
         }
-        const serviceAccount = JSON.parse(Buffer.from(encoded, "base64").toString("utf8"));
-        admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+
+        let serviceAccount;
+
+        try {
+            serviceAccount = JSON.parse(
+                Buffer.from(encoded, "base64").toString("utf8")
+            );
+        } catch (error) {
+            throw new Error(
+                "FIREBASE_SERVICE_ACCOUNT_BASE64 contains invalid service account JSON.",
+                { cause: error }
+            );
+        }
+
+        initializeApp({
+            credential: cert(serviceAccount)
+        });
     }
-    return admin.messaging();
+
+    return getFirebaseMessaging();
 }
 
 module.exports = { getMessaging };
