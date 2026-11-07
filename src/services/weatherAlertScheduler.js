@@ -198,13 +198,20 @@ async function scanWeatherAlerts() {
         const grouped = new Map();
 
         for (const loc of locations) {
-            const name = String(
-                loc.locationName || ""
-            ).trim();
+    const name = String(
+        loc.locationName || ""
+    ).trim();
 
-            if (!name || !loc.userId) {
-                continue;
-            }
+    if (!name || !loc.userId) {
+        continue;
+    }
+
+    // Ignore locations created by bulk-sync tests.
+    if (
+        /^Bulk City\s+\d+\s+\d+$/i.test(name)
+    ) {
+        continue;
+    }
 
             const key = name.toLowerCase();
 
