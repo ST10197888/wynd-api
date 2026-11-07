@@ -11,11 +11,14 @@ const gamificationRouter = require("./routes/gamification");
 const filesRouter = require("./routes/files");
 const notificationsRouter = require("./routes/notifications");
 const syncRouter = require("./routes/sync");
+const settingsCompatibilityRouter = require("./routes/settingsCompatibility");
+const mongoose = require("mongoose");
 
 const app = express();
 
 app.use(express.json({ limit: "10kb" }));
-app.use(cors());
+app.disable("x-powered-by");
+app.use(cors({ origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(",").map(x => x.trim()) : false }));
 
 connectToDatabase().catch(err => {
     console.error("MongoDB connection error:", err.message);
@@ -25,7 +28,10 @@ app.get("/", (req, res) => {
     res.status(200).json({ success: true, message: "Wynd API is up and running." });
 });
 
+app.get("/health/live", (req, res) => res.status(200).json({status:"alive"}));
+app.get("/health/ready", (req, res) => res.status(mongoose.connection.readyState === 1 ? 200 : 503).json({status:mongoose.connection.readyState === 1 ? "ready" : "unavailable"}));
 app.use(authRouter);
+app.use(settingsCompatibilityRouter);
 app.use(usersRouter);
 app.use(weatherRouter);
 app.use(gamificationRouter);
@@ -43,8 +49,8 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`Wynd API running on port ${PORT}`);
-});
+if (require.main === module) {
+    app.listen(PORT, () => console.log(`Wynd API running on port ${PORT}`));
+}
 
 module.exports = app;
