@@ -13,6 +13,7 @@ const notificationsRouter = require("./routes/notifications");
 const syncRouter = require("./routes/sync");
 const settingsCompatibilityRouter = require("./routes/settingsCompatibility");
 const mongoose = require("mongoose");
+const { startWeatherAlertScheduler } = require("./services/weatherAlertScheduler");
 
 const app = express();
 
@@ -50,7 +51,10 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 if (require.main === module) {
-    app.listen(PORT, () => console.log(`Wynd API running on port ${PORT}`));
+    app.listen(PORT, () => {
+        console.log(`Wynd API running on port ${PORT}`);
+        startWeatherAlertScheduler();
+    });
 }
 
 module.exports = app;
