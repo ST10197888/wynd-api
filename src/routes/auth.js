@@ -50,7 +50,7 @@ router.post("/auth/login", [
         user.lastLoginAt = new Date();
         await user.save();
         const token = jwt.sign({ userId: user._id, email: user.email }, process.env.JWT_SECRET, {
-            expiresIn: process.env.JWT_EXPIRES_IN
+            expiresIn: process.env.JWT_EXPIRES_IN || "1h"
         });
         return res.status(200).json({ token, userId: user._id });
     } catch (err) {

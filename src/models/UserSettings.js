@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 const userSettingsSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, unique: true },
+    defaultLocation: { type: String, default: "" },
     temperatureUnit: { type: String, enum: ["C", "F"], default: "C" },
     windSpeedUnit: { type: String, enum: ["km/h", "mph"], default: "km/h" },
     precipitationUnit: { type: String, enum: ["mm", "in"], default: "mm" },

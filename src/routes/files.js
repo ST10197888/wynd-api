@@ -1,5 +1,7 @@
 const express = require("express");
 const multer = require("multer");
+const crypto = require("crypto");
+const User = require("../models/User");
 const authenticateToken = require("../middleware/authMiddleware");
 const requireOwner = require("../middleware/requireOwner");
 const { getStorage } = require("../config/supabase");
@@ -30,7 +32,7 @@ router.post("/users/:userId/avatar", authenticateToken, requireOwner, handleUplo
             return res.status(400).json({ success: false, message: "Attach a JPEG, PNG or WebP image in the 'file' field." });
         }
         const { client, bucket } = getStorage();
-        const path = `avatars/${req.params.userId}`;
+        const path = `avatars/${req.params.userId}/${crypto.randomUUID()}`;
         const { error } = await client.storage.from(bucket).upload(path, req.file.buffer, {
             contentType: req.file.mimetype,
             upsert: true
@@ -38,6 +40,7 @@ router.post("/users/:userId/avatar", authenticateToken, requireOwner, handleUplo
         if (error) {
             throw error;
         }
+        await User.updateOne({ _id: req.user.userId }, { $set: { avatarObjectKey: path } });
         return res.status(201).json({ message: "Avatar uploaded.", path });
     } catch (err) {
         console.error("Avatar upload error:", err.message);
@@ -48,7 +51,9 @@ router.post("/users/:userId/avatar", authenticateToken, requireOwner, handleUplo
 router.get("/users/:userId/avatar", authenticateToken, requireOwner, async (req, res) => {
     try {
         const { client, bucket } = getStorage();
-        const { data, error } = await client.storage.from(bucket).createSignedUrl(`avatars/${req.params.userId}`, 3600);
+        const user = await User.findById(req.user.userId).select("avatarObjectKey");
+        if (!user?.avatarObjectKey) return res.status(404).json({ success: false, message: "No avatar found." });
+        const { data, error } = await client.storage.from(bucket).createSignedUrl(user.avatarObjectKey, 3600);
         if (error || !data) {
             return res.status(404).json({ success: false, message: "No avatar found." });
         }

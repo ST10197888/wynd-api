@@ -12,8 +12,8 @@ router.post("/users/:userId/sync/locations", authenticateToken, requireOwner, [
     body("items.*.clientId").isString().trim().notEmpty().withMessage("clientId is required."),
     body("items.*.locationName").isString().trim().notEmpty().withMessage("locationName is required."),
     body("items.*.timestamp").optional().isISO8601().withMessage("timestamp must be an ISO 8601 date."),
-    body("items.*.latitude").optional().isFloat().withMessage("latitude must be a number."),
-    body("items.*.longitude").optional().isFloat().withMessage("longitude must be a number."),
+    body("items.*.latitude").isFloat({ min: -90, max: 90 }).withMessage("latitude must be a number."),
+    body("items.*.longitude").isFloat({ min: -180, max: 180 }).withMessage("longitude must be a number."),
     body("items.*.country").optional().isString()
 ], async (req, res) => {
     try {

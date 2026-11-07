@@ -5,6 +5,7 @@ const userSchema = new mongoose.Schema({
     passwordHash: { type: String, required: true },
     lastLoginAt: { type: Date },
     biometricEnabled: { type: Boolean, default: false },
+    avatarObjectKey: { type: String },
     defaultLocationId: { type: mongoose.Schema.Types.ObjectId, ref: "SavedLocation" }
 }, { timestamps: { createdAt: true, updatedAt: false } });
 
