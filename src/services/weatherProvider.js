@@ -1,19 +1,51 @@
+
 const BASE_URL = "https://api.openweathermap.org/data/2.5";
 
 function getApiKey() {
     const key = process.env.OPENWEATHER_API_KEY;
-    if (!key) throw new Error("OPENWEATHER_API_KEY is not set in .env");
+
+    if (!key) {
+        throw new Error("OPENWEATHER_API_KEY is not set.");
+    }
+
     return key;
 }
 
-async function fetchCurrentWeather(location) {
-    const url = `${BASE_URL}/weather?q=${encodeURIComponent(location)}&appid=${getApiKey()}&units=metric`;
-    const res = await fetch(url);
-    const data = await res.json();
+async function requestWeather(path, location) {
+    const url = `${BASE_URL}/${path}?q=${encodeURIComponent(location)}&appid=${getApiKey()}&units=metric`;
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+        throw new Error(
+            `OpenWeatherMap ${path} request failed (HTTP ${response.status})`
+        );
+    }
+
+    const data = await response.json();
 
     if (data.cod && Number(data.cod) !== 200) {
-        throw new Error(`OpenWeatherMap error: ${data.message || data.cod}`);
+        throw new Error(
+            `OpenWeatherMap error: ${data.message || data.cod}`
+        );
     }
+
+    return data;
+}
+
+function localParts(unixSeconds, timezoneOffsetSeconds) {
+    const shifted = new Date(
+        (unixSeconds + timezoneOffsetSeconds) * 1000
+    );
+
+    return {
+        date: shifted.toISOString().slice(0, 10),
+        hour: shifted.getUTCHours()
+    };
+}
+
+async function fetchCurrentWeather(location) {
+    const data = await requestWeather("weather", location);
 
     return {
         locationName: data.name || location,
@@ -22,54 +54,107 @@ async function fetchCurrentWeather(location) {
         temperature: data.main.temp,
         feelsLike: data.main.feels_like,
         condition: data.weather[0].main,
+        weatherId: data.weather[0].id,
         humidity: data.main.humidity,
         windSpeed: data.wind.speed,
-        rainProbability: undefined, // not provided by the current-weather endpoint on the free tier
-        uvIndex: undefined,         // requires the paid One Call API on OpenWeatherMap's free tier
+        rainProbability: undefined,
+        uvIndex: undefined,
+        timezoneOffsetSeconds: Number(data.timezone) || 0,
         observedAt: new Date(data.dt * 1000)
     };
 }
 
 async function fetchForecast(location) {
-    const url = `${BASE_URL}/forecast?q=${encodeURIComponent(location)}&appid=${getApiKey()}&units=metric`;
-    const res = await fetch(url);
-    const data = await res.json();
+    const data = await requestWeather("forecast", location);
 
-    if (data.cod && Number(data.cod) !== 200) {
-        throw new Error(`OpenWeatherMap error: ${data.message || data.cod}`);
+    if (!Array.isArray(data.list)) {
+        throw new Error(
+            "OpenWeatherMap forecast response has no list."
+        );
     }
 
-    // The free tier only gives 3-hour steps for 5 days grouping them into daily buckets
-    const byDay = {};
+    const timezoneOffsetSeconds =
+        Number(data.city?.timezone) || 0;
+
+    const byDay = new Map();
+
     for (const entry of data.list) {
-        const day = entry.dt_txt.split(" ")[0];
-        if (!byDay[day]) byDay[day] = [];
-        byDay[day].push(entry);
+        if (!Number.isFinite(Number(entry.dt))) {
+            continue;
+        }
+
+        const { date, hour } = localParts(
+            Number(entry.dt),
+            timezoneOffsetSeconds
+        );
+
+        if (!byDay.has(date)) {
+            byDay.set(date, []);
+        }
+
+        byDay.get(date).push({ entry, hour });
     }
 
-    const days = Object.entries(byDay).map(([day, entries]) => {
-        const temps = entries.map(e => e.main.temp);
-        const middayEntry = entries.reduce((closest, e) => {
-            const hour = Number(e.dt_txt.split(" ")[1].split(":")[0]);
-            const closestHour = Number(closest.dt_txt.split(" ")[1].split(":")[0]);
-            return Math.abs(hour - 12) < Math.abs(closestHour - 12) ? e : closest;
+    return [...byDay.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .slice(0, 5)
+        .map(([day, entries]) => {
+            const items = entries.map(({ entry }) => entry);
+
+            const midday = entries.reduce((closest, item) =>
+                Math.abs(item.hour - 12) <
+                Math.abs(closest.hour - 12)
+                    ? item
+                    : closest
+            ).entry;
+
+            const probabilities = items.map(
+                entry => Number(entry.pop) || 0
+            );
+
+            const average = values =>
+                values.reduce(
+                    (sum, value) => sum + value,
+                    0
+                ) / values.length;
+
+            return {
+                date: new Date(`${day}T00:00:00.000Z`),
+                localDate: day,
+                timezoneOffsetSeconds,
+
+                minTemperature: Math.min(
+                    ...items.map(entry => entry.main.temp)
+                ),
+
+                maxTemperature: Math.max(
+                    ...items.map(entry => entry.main.temp)
+                ),
+
+                condition: midday.weather[0].main,
+
+                rainProbability: Math.round(
+                    average(probabilities) * 100
+                ),
+
+                maxRainProbability: Math.round(
+                    Math.max(...probabilities) * 100
+                ),
+
+                humidity: Math.round(
+                    average(
+                        items.map(entry => entry.main.humidity)
+                    )
+                ),
+
+                windSpeed: average(
+                    items.map(entry => entry.wind.speed)
+                )
+            };
         });
-        const avgPop = entries.reduce((sum, e) => sum + (e.pop || 0), 0) / entries.length;
-        const avgHumidity = entries.reduce((sum, e) => sum + e.main.humidity, 0) / entries.length;
-        const avgWind = entries.reduce((sum, e) => sum + e.wind.speed, 0) / entries.length;
-
-        return {
-            date: new Date(day),
-            minTemperature: Math.min(...temps),
-            maxTemperature: Math.max(...temps),
-            condition: middayEntry.weather[0].main,
-            rainProbability: Math.round(avgPop * 100),
-            humidity: Math.round(avgHumidity),
-            windSpeed: avgWind
-        };
-    });
-
-    return days.slice(0, 5);
 }
 
-module.exports = { fetchCurrentWeather, fetchForecast };
+module.exports = {
+    fetchCurrentWeather,
+    fetchForecast
+};
